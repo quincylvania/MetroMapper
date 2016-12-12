@@ -1,0 +1,173 @@
+<!--
+MetroMapper
+index.html
+
+Quincy Morgan
+Judith Smith
+Geography 461W
+Final Project
+December 2016
+ -->
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>MetroMapper</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+		<link rel="stylesheet" href="metro-mapper.css"/>
+		<link rel="stylesheet" href="leaflet/leaflet.css"/>
+	</head>
+	<body>
+		<div id="header">
+			<h1>
+				<b>Metro</b>Mapper
+			</h1>
+			<ul class="menu">
+				<li>
+					<a href="#" id="open-instructions">Instructions</a>
+				</li>
+				<li>
+					<a href="#" id="open-about">About</a>
+				</li>
+			</ul>
+		</div>
+		<div id="page">
+			<div id="maps-container"></div>
+			<div id="options">
+				<input type="checkbox" id="basemap-toggle" checked/>
+				<label for="basemap-toggle">Basemaps</label>
+				<input type="checkbox" id="linked-frames-toggle" checked/>
+				<label for="linked-frames-toggle">Linked Frames</label>
+				<label for="opacity-slider">Opacity</label>
+				<input id="opacity-slider" type="range" min="0" max="100" value="80"/>
+				
+				<label id="classing-method">Classing Method</label>
+				<input type="radio" name="classing-method" value="quantile" id="radio-option-quantile" checked/>
+				<label for="radio-option-quantile">Quantile</label>
+				<input type="radio" name="classing-method" value="equidistant" id="radio-option-equidistant"/>
+				<label for="radio-option-equidistant">Equal Interval</label>
+			</div>
+			<div id="table-container">
+				<div id="table-floating-header-col">
+					<table class="map-attributes" id="hcol"></table>
+				</div>
+				<div id="table-body-cols">
+					<table id="body-cells" class="map-attributes"></table>
+				</div>
+			</div>
+		</div>
+		<div id="veil">
+			<div id="instructions" class="overlay-box">
+				<div class="top-part">
+					<h2>Instructions</h2>
+					<a href="#" class="close-veil">Close</a>
+				</div>
+				<div class="body-part">
+					<p>
+						MetroMapper classes census tracts and maps them for comparison. A table displays the attribute values.
+						The maps and table contents depend on the values set above each map:
+					</p>
+					<h3>Metro</h3>
+					<p>
+						The census tracts in the metropolitan counties. Select from the ten most populous U.S. metropolitan areas.
+					</p>
+					<h3>Year</h3>
+					<p>
+						The U.S. decennial census year. Select from 1970 through 2010.
+					</p>
+					<h3>Attribute</h3>
+					<p>
+						The classed variable. Select from area and census variables.
+					</p>
+					<h3>Normalization</h3>
+					<p>
+						The variable to divide the attribute by before classing, resulting in "normalized" ratio values.
+					</p>
+					<p>
+						Adjust the map frames by dragging, scrolling, pinching, or pressing the zoom buttons.
+						Additional controls affect both the maps:
+					</p>
+					<h3>Basemaps</h3>
+					<p>
+						Toggle the visibility of the OpenStreetMap tile layers.
+					</p>
+					<h3>Linked Frames</h3>
+					<p>
+						Toggle linked map position and zoom when the metros are the same.
+					</p>
+					<h3>Opacity</h3>
+					<p>
+						Set the transparency of the tract layers.
+					</p>
+					<h3>Classing Method</h3>
+					<p>
+						Select the method by which the normalized attribute is classified.
+						Quantile puts an equal number of tracts in each class.
+						Equal Interval covers an equal data range with each class.
+					</p>
+				</div>
+			</div>
+			<div id="about" class="overlay-box">
+				<div class="top-part">
+					<h2>About</h2>
+					<a href="#" class="close-veil">Close</a>
+				</div>
+				<div class="body-part">
+					<p>
+						MetroMapper was developed by Quincy Morgan and Judy Smith.
+					</p>
+					<h3>Course</h3>
+						<p>
+							Geography 461W, Fall 2016<br/>
+							Instructor: <a href="http://www.geog.psu.edu/people/maceachren-alan" target="_blank">Alan MacEachren</a><br/>
+							TA: <a href="http://www.geog.psu.edu/people/karimzadeh-morteza" target="_blank">Morteza Karimzadeh</a><br/>
+							<a href="http://www.geog.psu.edu" target="_blank">Department of Geography</a><br/>
+							<a href="http://www.psu.edu" target="_blank">Penn State University</a>, University Park, PA<br/>
+							
+						</p>
+					<h3>Census Data</h3>
+					<p>
+						The <a href="http://www.census.gov" target="_blank">U.S. Census</a> data was acquired as time series from <a href="http://www.nhgis.org" target="_blank">NHGIS</a>. Formatting was performed with <a href="https://www.r-project.org" target="_blank">R</a>.
+					</p>
+					<h3>JavaScript Libraries</h3>
+					<p>
+						<a href="http://leafletjs.com" target="_blank">Leaflet.js</a> 1.0.2 underlies the mapping.<br/>
+						<a href="https://jquery.com" target="_blank">jQuery</a> 3.1.1 enables improved interactivity.<br/>
+						<a href="http://www.asual.com/jquery/format/" target="_blank">jQuery Format Plugin</a> 1.3 by Rostislav Hristov formats the table values.
+					</p>
+					<h3>Basemap</h3>
+					<p>
+						Basemap tiles come from <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a>.
+					</p>
+				</div>
+			</div>
+		</div>
+		<div id="map-section-source" style="display:none;">
+			<div class="map-section" mapid="MAPID">
+				<div class="map-settings">
+					<div class="dropdown-and-label">
+						<label for="metro-select-MAPID">Metro MAPID</label>
+						<select id="metro-select-MAPID" variable="city"></select>
+					</div>
+					<div class="dropdown-and-label">
+						<label for="year-select-MAPID">Year MAPID</label>
+						<select id="year-select-MAPID" variable="year"></select>
+					</div>
+					<div class="dropdown-and-label">
+						<label for="attribute-select-MAPID">Attribute MAPID</label>
+						<select id="attribute-select-MAPID" variable="attribute"></select>
+					</div>
+					<div class="dropdown-and-label">
+						<label for="normalization-select-MAPID">Normalization MAPID</label>
+						<select id="normalization-select-MAPID" variable="normalization"></select>
+					</div>
+				</div>
+				<div id="MAPID" class="map">
+				</div>
+			</div>
+		</div>
+	</body>
+	<script src="leaflet/leaflet.js"></script>
+	<script src="jquery/jquery-3.1.1.min.js"></script>
+	<script src="jquery/jquery.format-1.3.min.js"></script>
+	<script src="metro-mapper.js"></script>
+</html>
