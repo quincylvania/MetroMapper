@@ -18,7 +18,7 @@ html *{
 body{
 	font-weight:500;
 	width:100%;
-	min-height:100vh;
+	height:100vh;
 	margin: 0;
 	background-color:#fff;
 }
@@ -161,6 +161,9 @@ select{
 	overflow-y: hidden;
 	overflow-x: auto;
 	white-space: nowrap;
+}
+#options *{
+	font-size:inherit;
 }
 #options label{
 	margin-right:12px;
