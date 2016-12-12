@@ -8,6 +8,8 @@ Geography 461W
 Final Project
 December 2016
 */
+
+// city names, view center for map, zoom for map
 var cityInfo = {
 	NY:{
 		name:"New York-Newark-Jersey City",
@@ -60,33 +62,12 @@ var cityInfo = {
 		zoom:8
 	}
 };
+
+// census years
 var years = ["2010","2000","1990","1980","1970"];
-var attributesNotAppendedWithYear=["Shape_Area"];
-var alternateAttributeNamesForYears={
-	Shape_Area:{
-		2010:"Shape_area"
-	}
-}
-var attributeScaleFactors={
-	Shape_Area:0.000001
-}
-var attributeUnitLabels={
-	Shape_Area:"km&sup2;"
-}
+
+// attribute base ids and names, used for select options and table columns
 var attributeInfo = {
-	/*
-	NHGISCODE:"NHGIS Integrated Geographic Unit Code",
-	GJOIN2010:"GIS Join Match Code, 2010",
-	YEAR:"Data File Year",
-	STATE:"NHGIS Integrated State Name",
-	STATEFP:"FIPS State Code",
-	STATENH:"NHGIS Integrated State Code",
-	COUNTY:"NHGIS Integrated County Name",
-	COUNTYFP:"FIPS County Code",
-	COUNTYNH:"NHGIS Integrated County Code",
-	TRACTA:"NHGIS Integrated Census Tract Code",
-	NAME:"Area Name, 2010 ",
-	*/
 	Shape_Area:"Area",
 	AV0AA:"Total Persons",
 	B18AA:"White",
@@ -152,15 +133,42 @@ var attributeInfo = {
 	AR5AA:"Total Households"
 };
 
+// some attributes have the same name in each year and should not be appended
+var attributesNotAppendedWithYear=["Shape_Area"];
+// some attributes have different names in different years 
+var alternateAttributeNamesForYears={
+	Shape_Area:{
+		2010:"Shape_area"
+	}
+};
+// some attributes require scaling before display
+var attributeScaleFactors={
+	Shape_Area:0.000001
+};
+// some attributes have unit labels
+var attributeUnitLabels={
+	Shape_Area:"km&sup2;"
+};
+
+// references to data cached so as not to require reloading the large files
 var cachedData = {};
+// current leaflet maps
 var mapObjects = {};
+// current polygon layers
 var mapLayers = {};
+// current selected layers
 var selectedLayers = [];
+// color for polygon outline on mouseover
 var hoverColor = "#00FBFF";
+// color for polygon outline on mouse click/selection
 var selectedColor = "#0013FF";
+// stored flag for whether map position and zoom should be linked when metros are the same
 var framesAreLinked = true;
+// intermediate flag to prevent infinte loop of moveend events
 var linkedMoving = false;
+// current classing method
 var classingMethod = "quantile";
+// default settings for each map, also controls the number of added maps
 var defaultMapInfo = {
 	A:{
 		city:"Bos",
@@ -175,6 +183,166 @@ var defaultMapInfo = {
 		normalization:"LINKED"
 	}
 };
+
+// fired when page is done loading
+$(document).ready(function(){
+	for(mapId in defaultMapInfo){
+		initiateMapSection(mapId);
+		loadMap(mapId);
+	}
+});
+
+// any select field in the map settings changed, reload the maps
+$(document).on( "change", ".map-settings select",function() {
+	for(mapId in mapObjects){
+		loadMap(mapId);
+	}
+});
+
+// close all overlays
+$(document).on( "click", "a.close-veil",function(event) {
+	$("#veil .overlay-box").hide();
+	$("#veil").hide();
+	return false;
+});
+// open instructions overlay
+$(document).on( "click", "a#open-instructions",function() {
+	$("#veil .overlay-box#instructions").show();
+	$("#veil").show();
+	return false;
+});
+// open about overlay
+$(document).on( "click", "a#open-about",function() {
+	$("#veil .overlay-box#about").show();
+	$("#veil").show();
+	return false;
+});
+
+// basemap checkbox changed
+$(document).on( "change", "#options input#basemap-toggle",function() {
+	var checked = $(this).is(":checked");
+	for(mapId in mapObjects){
+		var map = mapObjects[mapId];
+		if(checked){
+			addBasemapLayer(map);
+		}
+		else{
+			removeBasemapLayer(map);
+		}
+	}
+});
+
+// opacity slider value changed
+$(document).on( "change", "#options input#opacity-slider",function() {
+	for(mapId in mapObjects){
+		setLayerOpacity(mapId);
+	}
+});
+// linked frame checkbox changed
+$(document).on( "change", "#options input#linked-frames-toggle",function() {
+	framesAreLinked = $(this).is(":checked");
+	if(framesAreLinked){
+		for(mapId in mapObjects){
+			var map = mapObjects[mapId];
+			map.fire("moveend");
+		}
+	}
+});
+
+// classing method changed, reclass and redisplay
+$(document).on( "change", "#options input[type='radio'][name='classing-method']",function() {
+	classingMethod = $(this).val();
+	for(mapId in mapObjects){
+		loadMap(mapId);
+	}
+});
+
+function initiateMapSection(mapId){
+	var mapSectionParent = $( "#map-section-source" ).clone();
+	mapSectionParent.html(mapSectionParent.html().replace(/MAPID/g, mapId));
+
+	var mapSection = mapSectionParent.children().first();
+	loadMapSettingsContols(mapId,mapSection);
+	mapSection.appendTo( "#maps-container" );
+
+	var map = L.map(mapId,{
+		doubleClickZoom:true,
+		fadeAnimation:false,
+		zoomAnimation:true,
+		minZoom:6,
+		mapId:mapId,
+		year:"",
+		city:""
+	});
+	map.on("moveend",mapMoveEnded);
+	addBasemapLayer(map);
+	L.control.scale().addTo(map);
+	mapObjects[mapId] = map;
+
+}
+function mapMoveEnded(e){
+	if(framesAreLinked){
+		if(linkedMoving){
+			linkedMoving = false;
+		}
+		else{
+			linkedMoving = true;
+			var targetMap = e.target;
+			var targetMapId = targetMap.options.mapId;
+			var mapCenter = e.target.getCenter();
+			if(mapCenter != undefined){
+				for(mapId in mapObjects){
+					if(mapId != targetMapId){
+						var map = mapObjects[mapId];
+						if(map.options.city == targetMap.options.city){
+							mapObjects[mapId].setView(mapCenter,e.target._zoom,{animate:false,duration:0});
+						}
+					}
+				}
+			}
+		}
+	}
+}
+function loadMapSettingsContols(mapId,mapSection){
+	var metroSelect = mapSection.find("select[variable='city']");
+	metroSelect.html("");
+	for(city in cityInfo){
+		metroSelect.append($.parseHTML("<option value='"+city+"'>"+cityInfo[city].name+"</option>"));
+	}
+	
+	var yearSelect = mapSection.find("select[variable='year']");
+	yearSelect.html("");
+	for(i in years){
+		var year = years[i];
+		yearSelect.append($.parseHTML("<option value='"+year+"'>"+year+"</option>"));
+	}
+	
+	var attrSelect = mapSection.find("select[variable='attribute']");
+	var normSelect = mapSection.find("select[variable='normalization']");
+	attrSelect.html("");
+	normSelect.html("");
+	for(attr in attributeInfo){
+		var name = attributeInfo[attr];
+		attrSelect.append($.parseHTML("<option value='"+attr+"'>"+name+"</option>"));
+		normSelect.append($.parseHTML("<option value='"+attr+"'>"+name+"</option>"));
+	}
+	normSelect.prepend($.parseHTML("<option value='NONE'>None</option>"));
+	
+	for(otherMapId in defaultMapInfo){
+		if(otherMapId != mapId){
+			yearSelect.prepend($.parseHTML("<option value='LINKED' tomap='"+otherMapId+"'>Year "+otherMapId+"</option>"));
+			metroSelect.prepend($.parseHTML("<option value='LINKED' tomap='"+otherMapId+"'>Metro "+otherMapId+"</option>"));
+			attrSelect.prepend($.parseHTML("<option value='LINKED' tomap='"+otherMapId+"'>Variable "+otherMapId+"</option>"));
+			normSelect.prepend($.parseHTML("<option value='LINKED' tomap='"+otherMapId+"'>Normalization "+otherMapId+"</option>"));
+		}
+	}
+	var mapInfo = defaultMapInfo[mapId];
+	metroSelect.val(mapInfo.city);
+	yearSelect.val(mapInfo.year);
+	attrSelect.val(mapInfo.attribute);
+	normSelect.val(mapInfo.normalization);
+	
+}
 
 function variableId(baseVar,year){
 	var value = undefined;
@@ -260,11 +428,9 @@ function getClassBreaks(method,classCount,features,attribute,normalization){
 			}
 		}
 		allAttributeValues.sort();
-		//console.log("length "+allAttributeValues.length)
 		var bucketSize = Math.floor(allAttributeValues.length/classCount);
 		for(i=1;i<classCount+1;i+=1){
 			var index = i*bucketSize;
-			//console.log(index);
 			var classMax = allAttributeValues[index];
 			classMaxes.push(classMax);
 		}
@@ -273,13 +439,30 @@ function getClassBreaks(method,classCount,features,attribute,normalization){
 	return classMaxes;
 }
 
+function addBasemapLayer(map){
+	removeBasemapLayer(map);
+	var tileLayer = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+		attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+		detectRetina:false
+	});
+	tileLayer.addTo(map);
+}
+function removeBasemapLayer(map){
+	var layers = map._layers;
+	for(i in layers){
+		var layer = layers[i];
+		if(layer._tiles != undefined){
+			layer.removeFrom(map);
+		}
+	}
+}
 function addDataToMap(data,map,mapId,year){
 
 	var attribute = variableId(getSelectValue(mapId,"attribute"),year);
 	var normalization = variableId(getSelectValue(mapId,"normalization"),year);
 	
 	var classBreaks = getClassBreaks(classingMethod,5,data.features,attribute,normalization);
-	//console.log(classBreaks);
+
 	var colors = ['#ffffd4',"#fed98e","#fe9929","#d95f0e","#993404"];
 	var choroplethLayer = L.geoJSON(data, {
 		style: {
@@ -339,107 +522,6 @@ function addDataToMap(data,map,mapId,year){
 	mapLayers[mapId] = choroplethLayer;
 	choroplethLayer.addTo(map);
 	setLayerOpacity(mapId);
-}
-
-function initiateMapSection(mapId){
-	var mapSectionParent = $( "#map-section-source" ).clone();
-	mapSectionParent.html(mapSectionParent.html().replace(/MAPID/g, mapId));
-
-	var mapSection = mapSectionParent.children().first();
-	var metroSelect = mapSection.find("select[variable='city']");
-	metroSelect.html("");
-	for(city in cityInfo){
-		metroSelect.append($.parseHTML("<option value='"+city+"'>"+cityInfo[city].name+"</option>"));
-	}
-	
-	var yearSelect = mapSection.find("select[variable='year']");
-	yearSelect.html("");
-	for(i in years){
-		var year = years[i];
-		yearSelect.append($.parseHTML("<option value='"+year+"'>"+year+"</option>"));
-	}
-	
-	var attrSelect = mapSection.find("select[variable='attribute']");
-	var normSelect = mapSection.find("select[variable='normalization']");
-	attrSelect.html("");
-	normSelect.html("");
-	for(attr in attributeInfo){
-		var name = attributeInfo[attr];
-		attrSelect.append($.parseHTML("<option value='"+attr+"'>"+name+"</option>"));
-		normSelect.append($.parseHTML("<option value='"+attr+"'>"+name+"</option>"));
-	}
-	normSelect.prepend($.parseHTML("<option value='NONE'>None</option>"));
-	
-	for(otherMapId in defaultMapInfo){
-		if(otherMapId != mapId){
-			yearSelect.prepend($.parseHTML("<option value='LINKED' tomap='"+otherMapId+"'>Year "+otherMapId+"</option>"));
-			metroSelect.prepend($.parseHTML("<option value='LINKED' tomap='"+otherMapId+"'>Metro "+otherMapId+"</option>"));
-			attrSelect.prepend($.parseHTML("<option value='LINKED' tomap='"+otherMapId+"'>Variable "+otherMapId+"</option>"));
-			normSelect.prepend($.parseHTML("<option value='LINKED' tomap='"+otherMapId+"'>Normalization "+otherMapId+"</option>"));
-		}
-	}
-	var mapInfo = defaultMapInfo[mapId];
-	metroSelect.val(mapInfo.city);
-	yearSelect.val(mapInfo.year);
-	attrSelect.val(mapInfo.attribute);
-	normSelect.val(mapInfo.normalization);
-	
-	mapSection.appendTo( "#maps-container" );
-
-	var map = L.map(mapId,{
-		doubleClickZoom:true,
-		fadeAnimation:false,
-		zoomAnimation:true,
-		minZoom:6,
-		mapId:mapId,
-		year:"",
-		city:""
-	});
-	map.on("moveend",function(e){
-		if(framesAreLinked){
-			if(linkedMoving){
-				linkedMoving = false;
-			}
-			else{
-				linkedMoving = true;
-				var targetMap = e.target;
-				var targetMapId = targetMap.options.mapId;
-				var mapCenter = e.target.getCenter();
-				if(mapCenter != undefined){
-					for(mapId in mapObjects){
-						if(mapId != targetMapId){
-							var map = mapObjects[mapId];
-							if(map.options.city == targetMap.options.city){
-								mapObjects[mapId].setView(mapCenter,e.target._zoom,{animate:false,duration:0});
-							}
-						}
-					}
-				}
-			}
-		}
-	});
-	addBasemapLayer(map);
-	L.control.scale().addTo(map);
-	mapObjects[mapId] = map;
-
-}
-function addBasemapLayer(map){
-	removeBasemapLayer(map);
-	var tileLayer = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-		attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
-		detectRetina:false
-	});
-	tileLayer.addTo(map);
-}
-function removeBasemapLayer(map){
-	var layers = map._layers;
-	for(i in layers){
-		var layer = layers[i];
-		if(layer._tiles != undefined){
-			console.log(map);
-			layer.removeFrom(map);
-		}
-	}
 }
 
 function getSelectValue(mapId,variable){
@@ -601,23 +683,7 @@ function loadTable(){
 	
 }
 
-$(document).on( "change", ".map-settings select",function() {
-	for(mapId in mapObjects){
-		loadMap(mapId);
-	}
-});
-$(document).on( "change", "#options input#basemap-toggle",function() {
-	var checked = $(this).is(":checked");
-	for(mapId in mapObjects){
-		var map = mapObjects[mapId];
-		if(checked){
-			addBasemapLayer(map);
-		}
-		else{
-			removeBasemapLayer(map);
-		}
-	}
-});
+
 function setLayerOpacity(mapId){
 	var value = $("#options input#opacity-slider").val()/100;
 	var map = mapObjects[mapId];
@@ -629,47 +695,3 @@ function setLayerOpacity(mapId){
 		}
 	}
 }
-$(document).on( "change", "#options input#opacity-slider",function() {
-	for(mapId in mapObjects){
-		setLayerOpacity(mapId);
-	}
-});
-$(document).on( "click", "a.close-veil",function(event) {
-	$("#veil .overlay-box").hide();
-	$("#veil").hide();
-	return false;
-});
-$(document).on( "click", "a#open-instructions",function() {
-	$("#veil .overlay-box#instructions").show();
-	$("#veil").show();
-	return false;
-});
-$(document).on( "click", "a#open-about",function() {
-	$("#veil .overlay-box#about").show();
-	$("#veil").show();
-	return false;
-});
-
-
-$(document).on( "change", "#options input#linked-frames-toggle",function() {
-	framesAreLinked = $(this).is(":checked");
-	if(framesAreLinked){
-		for(mapId in mapObjects){
-			var map = mapObjects[mapId];
-			map.fire("moveend");
-		}
-	}
-});
-
-$(document).on( "change", "#options input[type='radio'][name='classing-method']",function() {
-	classingMethod = $(this).val();
-	for(mapId in mapObjects){
-		loadMap(mapId);
-	}
-});
-$(document).ready(function(){
-	for(mapId in defaultMapInfo){
-		initiateMapSection(mapId);
-		loadMap(mapId);
-	}
-});

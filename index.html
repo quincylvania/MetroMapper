@@ -12,11 +12,15 @@ December 2016
 <html>
 	<head>
 		<title>MetroMapper</title>
-		<meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0' name='viewport' />
-		<link rel="stylesheet" href="metro-mapper.css"/>
-		<link rel="stylesheet" href="leaflet/leaflet.css"/>
+		<!-- ensure responsive mobile experience -->
+		<meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0' name='viewport' /> 
+		<!-- custom app styles -->
+		<link rel="stylesheet" href="metro-mapper.css"/> 
+		<!-- styles for leaflet maps -->
+		<link rel="stylesheet" href="leaflet/leaflet.css"/> 
 	</head>
 	<body>
+		<!-- top bar -->
 		<div id="header">
 			<h1>
 				<b>Metro</b>Mapper
@@ -30,6 +34,7 @@ December 2016
 				</li>
 			</ul>
 		</div>
+		<!-- maps, controls, and table section; mostly populated by the script -->
 		<div id="page">
 			<div id="maps-container"></div>
 			<div id="options">
@@ -55,6 +60,7 @@ December 2016
 				</div>
 			</div>
 		</div>
+		<!-- page overlay for info boxes-->
 		<div id="veil">
 			<div id="instructions" class="overlay-box">
 				<div class="top-part">
@@ -141,6 +147,7 @@ December 2016
 				</div>
 			</div>
 		</div>
+		<!-- contains reusable code to be duplicated and added for each map with javascript -->
 		<div id="map-section-source" style="display:none;">
 			<div class="map-section" mapid="MAPID">
 				<div class="map-settings">
@@ -166,8 +173,12 @@ December 2016
 			</div>
 		</div>
 	</body>
+	<!-- leaflet script for mapping -->
 	<script src="leaflet/leaflet.js"></script>
+	<!-- jquery for interaction -->
 	<script src="jquery/jquery-3.1.1.min.js"></script>
+	<!-- jquery format plugin for formatting numbers in the table -->
 	<script src="jquery/jquery.format-1.3.min.js"></script>
+	<!-- custom app script -->
 	<script src="metro-mapper.js"></script>
 </html>
